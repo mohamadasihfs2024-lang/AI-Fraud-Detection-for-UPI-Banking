@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Fraud Detection Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://unpkg.com/recharts@2.10.3/umd/Recharts.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-primary: #050a14;
+      --bg-secondary: #0a1628;
+      --accent: #00d4aa;
+      --accent-secondary: #0ea5e9;
+      --danger: #ef4444;
+      --warning: #f59e0b;
+      --success: #10b981;
+      --text-primary: #f1f5f9;
+      --text-secondary: #94a3b8;
+      --border: rgba(148, 163, 184, 0.1);
+    }
+    
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    body {
+      font-family: 'Space Grotesk', sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+    }
+    
+    .mono { font-family: 'JetBrains Mono', monospace; }
+    
+    .glass {
+      background: rgba(15, 23, 42, 0.6);
+      backdrop-filter: blur(20px);
+      border: 1px solid var(--border);
+    }
+    
+    .glass-strong {
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(30px);
+      border: 1px solid rgba(148, 163, 184, 0.15);
+    }
+    
+    @keyframes slide-up {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    @keyframes pulse-glow {
+      0%, 100% { opacity: 0.05; }
+      50% { opacity: 0.1; }
+    }
+    
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    
+    .animate-slide-up { animation: slide-up 0.5s ease-out forwards; }
+    .animate-spin { animation: spin 1s linear infinite; }
+    
+    .scrollbar-thin::-webkit-scrollbar { width: 6px; height: 6px; }
+    .scrollbar-thin::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.5); }
+    .scrollbar-thin::-webkit-scrollbar-thumb { background: rgba(0, 212, 170, 0.3); border-radius: 3px; }
+    
+    input[type="range"] {
+      -webkit-appearance: none;
+      height: 8px;
+      border-radius: 4px;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: var(--accent);
+      cursor: pointer;
+    }
+    
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useMemo, useCallback } = React;
+    const { 
+      LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area, PieChart, Pie, Cell
+    } = Recharts;
+
+    // Data
+    const initialTransactions = [
+      { id: 'TXN-001', userId: 'USR-7823', amount: 1250.00, location: 'New York, USA', riskScore: 15, status: 'Normal' },
+      { id: 'TXN-002', userId: 'USR-4521', amount: 8500.00, location: 'Lagos, Nigeria', riskScore: 87, status: 'Suspicious' },
+      { id: 'TXN-003', userId: 'USR-9012', amount: 450.50, location: 'London, UK', riskScore: 22, status: 'Normal' },
+      { id: 'TXN-004', userId: 'USR-3345', amount: 15000.00, location: 'Moscow, Russia', riskScore: 95, status: 'Blocked' },
+      { id: 'TXN-005', userId: 'USR-6789', amount: 320.00, location: 'Tokyo, Japan', riskScore: 18, status: 'Normal' },
+      { id: 'TXN-006', userId: 'USR-2345', amount: 2200.00, location: 'Mumbai, India', riskScore: 45, status: 'Normal' },
+      { id: 'TXN-007', userId: 'USR-8901', amount: 9800.00, location: 'Karachi, Pakistan', riskScore: 78, status: 'Suspicious' },
+      { id: 'TXN-008', userId: 'USR-5678', amount: 180.00, location: 'Berlin, Germany', riskScore: 12, status: 'Normal' },
+      { id: 'TXN-009', userId: 'USR-1234', amount: 5500.00, location: 'Kyiv, Ukraine', riskScore: 62, status: 'Suspicious' },
+      { id: 'TXN-010', userId: 'USR-4567', amount: 750.00, location: 'Sydney, Australia', riskScore: 28, status: 'Normal' },
+    ];
+
+    const trendData = [
+      { name: 'Mon', transactions: 4200, fraud: 42 },
+      { name: 'Tue', transactions: 3800, fraud: 38 },
+      { name: 'Wed', transactions: 5100, fraud: 51 },
+      { name: 'Thu', transactions: 4600, fraud: 92 },
+      { name: 'Fri', transactions: 6200, fraud: 124 },
+      { name: 'Sat', transactions: 3500, fraud: 35 },
+      { name: 'Sun', transactions: 2800, fraud: 28 },
+    ];
+
+    const statusData = [
+      { name: 'Normal', value: 750, color: '#10b981' },
+      { name: 'Suspicious', value: 180, color: '#f59e0b' },
+      { name: 'Blocked', value: 70, color: '#ef4444' },
+    ];
+
+    const riskRegions = [
+      { region: 'North America', risk: 25, transactions: 12500 },
+      { region: 'Europe', risk: 32, transactions: 9800 },
+      { region: 'Asia Pacific', risk: 45, transactions: 15000 },
+      { region: 'South America', risk: 58, transactions: 4200 },
+      { region: 'Africa', risk: 72, transactions: 2800 },
+      { region: 'Middle East', risk: 55, transactions: 3500 },
+    ];
+
+    // Icons
+    const Icon = ({ name, className = "w-5 h-5" }) => {
+      const icons = {
+        dashboard: <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 5a1 1 0 011-1h4a1 1 0 011 1v5a1 1 0 01-1 1H5a1 1 0 01-1-1V5zm10 0a1 1 0 011-1h4a1 1 0 011 1v2a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zm0 6a1 1 0 011-1h4a1 1 0 011 1v7a1 1 0 01-1 1h-4a1 1 0 01-1-1v-7zm-10 2a1 1 0 011-1h4a1 1 0 011 1v5a1 1 0 01-1 1H5a1 1 0 01-1-1v-5z" /></svg>,
+        transactions: <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg>,
+        risk: <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>,
+        alerts: <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>,
+        settings: <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>,
+        search: <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>,
+        download: <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>,
+        menu: <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6h16M4 12h16M4 18h16" /></svg>,
+        warning: <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>,
+        x: <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>,
+      };
+      return icons[name] || null;
+    };
+
+    // Loading Screen
+    const LoadingScreen = ({ onComplete }) => {
+      const [progress, setProgress] = useState(0);
+      
+      useEffect(() => {
+        const interval = setInterval(() => {
+          setProgress(p => {
+            if (p >= 100) {
+              clearInterval(interval);
+              setTimeout(onComplete, 200);
+              return 100;
+            }
+            return p + Math.random() * 12;
+          });
+        }, 80);
+        return () => clearInterval(interval);
+      }, [onComplete]);
+
+      return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: 'var(--bg-primary)' }}>
+          <div className="text-center">
+            <div className="w-16 h-16 mx-auto mb-6 rounded-2xl flex items-center justify-center animate-spin" style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-secondary))', animationDuration: '3s' }}>
+              <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+              </svg>
+            </div>
+            <h1 className="text-2xl font-bold mb-2" style={{ color: 'var(--text-primary)' }}>FraudGuard AI</h1>
+            <p className="text-sm mb-6" style={{ color: 'var(--text-secondary)' }}>Initializing Security Systems</p>
+            <div className="w-56 h-1.5 rounded-full overflow-hidden mx-auto" style={{ background: 'var(--border)' }}>
+              <div className="h-full rounded-full transition-all" style={{ width: `${Math.min(progress, 100)}%`, background: 'linear-gradient(90deg, var(--accent), var(--accent-secondary))' }}></div>
+            </div>
+            <p className="mt-3 mono text-sm" style={{ color: 'var(--accent)' }}>{Math.min(Math.round(progress), 100)}%</p>
+          </div>
+        </div>
+      );
+    };
+
+    // Sidebar
+    const Sidebar = ({ currentPage, setCurrentPage, isOpen, setIsOpen }) => {
+      const menuItems = [
+        { id: 'dashboard', label: 'Dashboard', icon: 'dashboard' },
+        { id: 'transactions', label: 'Transactions', icon: 'transactions' },
+        { id: 'risk', label: 'Risk Analysis', icon: 'risk' },
+        { id: 'alerts', label: 'Alerts', icon: 'alerts' },
+        { id: 'settings', label: 'Settings', icon: 'settings' },
+      ];
+
+      return (
+        <>
+          {isOpen && <div className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden" onClick={() => setIsOpen(false)} />}
+          <aside className={`fixed lg:static inset-y-0 left-0 z-50 w-56 transform transition-transform duration-300 lg:transform-none ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`} style={{ background: 'var(--bg-secondary)' }}>
+            <div className="flex flex-col h-full p-4">
+              <div className="flex items-center gap-3 mb-8 p-3">
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-secondary))' }}>
+                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
+                </div>
+                <div>
+                  <h1 className="font-bold" style={{ color: 'var(--text-primary)' }}>FraudGuard</h1>
+                  <p className="text-xs" style={{ color: 'var(--accent)' }}>AI Security</p>
+                </div>
+              </div>
+              
+              <nav className="flex-1 space-y-1">
+                {menuItems.map(item => (
+                  <button
+                    key={item.id}
+                    onClick={() => { setCurrentPage(item.id); setIsOpen(false); }}
+                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all`}
+                    style={{
+                      background: currentPage === item.id ? 'linear-gradient(135deg, rgba(0, 212, 170, 0.15), rgba(14, 165, 233, 0.08))' : 'transparent',
+                      borderLeft: currentPage === item.id ? '3px solid var(--accent)' : '3px solid transparent',
+                      color: currentPage === item.id ? 'var(--text-primary)' : 'var(--text-secondary)'
+                    }}
+                  >
+                    <Icon name={item.icon} />
+                    <span className="text-sm font-medium">{item.label}</span>
+                    {item.id === 'alerts' && <span className="ml-auto px-1.5 py-0.5 text-xs rounded-full" style={{ background: 'var(--danger)', color: 'white' }}>3</span>}
+                  </button>
+                ))}
+              </nav>
+              
+              <div className="glass rounded-xl p-3 mt-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold" style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-secondary))', color: 'white' }}>AD</div>
+                  <div>
+                    <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>Admin</p>
+                    <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>Analyst</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </aside>
+        </>
+      );
+    };
+
+    // Stat Card
+    const StatCard = ({ title, value, change, icon, color, delay }) => {
+      const [displayValue, setDisplayValue] = useState(0);
+      
+      useEffect(() => {
+        const timeout = setTimeout(() => {
+          const step = value / 30;
+          let current = 0;
+          const timer = setInterval(() => {
+            current += step;
+            if (current >= value) {
+              setDisplayValue(value);
+              clearInterval(timer);
+            } else {
+              setDisplayValue(Math.floor(current));
+            }
+          }, 30);
+        }, delay);
+        return () => clearTimeout(timeout);
+      }, [value, delay]);
+
+      return (
+        <div className="glass rounded-xl p-5 animate-slide-up" style={{ animationDelay: `${delay}ms` }}>
+          <div className="flex items-start justify-between mb-3">
+            <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: `${color}20` }}>
+              <Icon name={icon} className="w-5 h-5" />
+            </div>
+            <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: change >= 0 ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)', color: change >= 0 ? 'var(--success)' : 'var(--danger)' }}>
+              {change >= 0 ? '+' : ''}{change}%
+            </span>
+          </div>
+          <p className="text-xs mb-1" style={{ color: 'var(--text-secondary)' }}>{title}</p>
+          <p className="text-2xl font-bold mono" style={{ color: 'var(--text-primary)' }}>
+            {title.includes('Percentage') || title.includes('Accuracy') ? `${displayValue}%` : displayValue.toLocaleString()}
+          </p>
+        </div>
+      );
+    };
+
+    // Confidence Circle
+    const ConfidenceCircle = ({ score }) => {
+      const [animated, setAnimated] = useState(0);
+      const radius = 60;
+      const circumference = 2 * Math.PI * radius;
+      
+      useEffect(() => {
+        const timer = setInterval(() => {
+          setAnimated(p => {
+            if (p >= score) { clearInterval(timer); return score; }
+            return p + 2;
+          });
+        }, 20);
+        return () => clearInterval(timer);
+      }, [score]);
+
+      return (
+        <div className="glass rounded-xl p-5 text-center">
+          <h3 className="font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>AI Confidence</h3>
+          <div className="relative w-36 h-36 mx-auto">
+            <svg className="w-full h-full -rotate-90" viewBox="0 0 140 140">
+              <circle cx="70" cy="70" r={radius} fill="none" stroke="rgba(148, 163, 184, 0.1)" strokeWidth="10" />
+              <circle cx="70" cy="70" r={radius} fill="none" stroke="url(#grad)" strokeWidth="10" strokeLinecap="round" strokeDasharray={circumference} strokeDashoffset={circumference - (animated / 100) * circumference} style={{ transition: 'stroke-dashoffset 0.1s' }} />
+              <defs><linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stopColor="#00d4aa" /><stop offset="100%" stopColor="#0ea5e9" /></linearGradient></defs>
+            </svg>
+            <div className="absolute inset-0 flex items-center justify-center flex-col">
+              <span className="text-3xl font-bold mono" style={{ color: 'var(--text-primary)' }}>{Math.round(animated)}%</span>
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-2 mt-4 text-xs">
+            <div><p style={{ color: 'var(--text-secondary)' }}>Precision</p><p className="font-semibold" style={{ color: 'var(--accent)' }}>94.2%</p></div>
+            <div><p style={{ color: 'var(--text-secondary)' }}>Recall</p><p className="font-semibold" style={{ color: 'var(--accent-secondary)' }}>91.8%</p></div>
+            <div><p style={{ color: 'var(--text-secondary)' }}>F1</p><p className="font-semibold" style={{ color: 'var(--success)' }}>93.0%</p></div>
+          </div>
+        </div>
+      );
+    };
+
+    // Alert Popup
+    const AlertPopup = ({ alert, onClose }) => {
+      if (!alert) return null;
+      return (
+        <div className="fixed top-4 right-4 z-50 w-72 animate-slide-up">
+          <div className="glass-strong rounded-xl p-4 border-l-4" style={{ borderColor: 'var(--danger)' }}>
+            <div className="flex items-start gap-3">
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'rgba(239, 68, 68, 0.2)' }}><Icon name="warning" className="w-4 h-4" /></div>
+              <div className="flex-1">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-semibold text-sm" style={{ color: 'var(--danger)' }}>Fraud Alert</h4>
+                  <button onClick={onClose} className="p-1"><Icon name="x" className="w-4 h-4" /></button>
+                </div>
+                <p className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>{alert.message}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    // Dashboard Page
+    const DashboardPage = ({ stats }) => (
+      <div className="space-y-6">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Dashboard Overview</h1>
+            <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>Real-time fraud detection metrics</p>
+          </div>
+          <button className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all hover:scale-105" style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-secondary))', color: 'white' }}>
+            <Icon name="download" className="w-4 h-4" /> Download Report
+          </button>
+        </div>
+
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <StatCard title="Total Transactions" value={stats.total} change={12.5} icon="dashboard" color="var(--accent)" delay={0} />
+          <StatCard title="Fraud Detected" value={stats.fraud} change={-8.3} icon="warning" color="var(--danger)" delay={50} />
+          <StatCard title="Risk Percentage" value={stats.risk} change={2.1} icon="risk" color="var(--warning)" delay={100} />
+          <StatCard title="System Accuracy" value={stats.accuracy} change={1.2} icon="dashboard" color="var(--success)" delay={150} />
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <div className="lg:col-span-2 glass rounded-xl p-5">
+            <h3 className="font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>Transaction Trend</h3>
+            <div className="h-48">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={trendData}>
+                  <defs>
+                    <linearGradient id="colorT" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#00d4aa" stopOpacity={0.3}/><stop offset="95%" stopColor="#00d4aa" stopOpacity={0}/></linearGradient>
+                    <linearGradient id="colorF" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#ef4444" stopOpacity={0.3}/><stop offset="95%" stopColor="#ef4444" stopOpacity={0}/></linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.1)" />
+                  <XAxis dataKey="name" stroke="#94a3b8" fontSize={11} />
+                  <YAxis stroke="#94a3b8" fontSize={11} />
+                  <Tooltip contentStyle={{ background: 'rgba(15, 23, 42, 0.9)', border: 'none', borderRadius: '8px' }} />
+                  <Area type="monotone" dataKey="transactions" stroke="#00d4aa" fill="url(#colorT)" strokeWidth={2} />
+                  <Area type="monotone" dataKey="fraud" stroke="#ef4444" fill="url(#colorF)" strokeWidth={2} />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+          <ConfidenceCircle score={94.2} />
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className="glass rounded-xl p-5">
+            <h3 className="font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>Status Distribution</h3>
+            <div className="h-48">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={statusData} layout="vertical">
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.1)" />
+                  <XAxis type="number" stroke="#94a3b8" fontSize={11} />
+                  <YAxis dataKey="name" type="category" stroke="#94a3b8" fontSize={11} width={70} />
+                  <Tooltip contentStyle={{ background: 'rgba(15, 23, 42, 0.9)', border: 'none', borderRadius: '8px' }} />
+                  <Bar dataKey="value" radius={[0, 4, 4, 0]}>{statusData.map((e, i) => <Cell key={i} fill={e.color} />)}</Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+          <div className="glass rounded-xl p-5">
+            <h3 className="font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>Recent Transactions</h3>
+            <div className="space-y-2 max-h-48 overflow-y-auto scrollbar-thin">
+              {initialTransactions.slice(0, 5).map(tx => (
+                <div key={tx.id} className="flex items-center justify-between p-2.5 rounded-lg" style={{ background: 'rgba(148, 163, 184, 0.05)' }}>
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded flex items-center justify-center text-xs font-bold" style={{ background: tx.status === 'Normal' ? 'rgba(16, 185, 129, 0.2)' : tx.status === 'Suspicious' ? 'rgba(245, 158, 11, 0.2)' : 'rgba(239, 68, 68, 0.2)', color: tx.status === 'Normal' ? 'var(--success)' : tx.status === 'Suspicious' ? 'var(--warning)' : 'var(--danger)' }}>{tx.riskScore}</div>
+                    <div>
+                      <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{tx.id}</p>
+                      <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>{tx.location}</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm font-semibold mono" style={{ color: 'var(--text-primary)' }}>${tx.amount.toLocaleString()}</p>
+                    <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: tx.status === 'Normal' ? 'rgba(16, 185, 129, 0.2)' : tx.status === 'Suspicious' ? 'rgba(245, 158, 11, 0.2)' : 'rgba(239, 68, 68, 0.2)', color: tx.status === 'Normal' ? 'var(--success)' : tx.status === 'Suspicious' ? 'var(--warning)' : 'var(--danger)' }}>{tx.status}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+
+    // Transactions Page
+    const TransactionsPage = () => {
+      const [search, setSearch] = useState('');
+      const [filter, setFilter] = useState('all');
+
+      const filtered = useMemo(() => initialTransactions.filter(tx => {
+        const matchSearch = tx.id.toLowerCase().includes(search.toLowerCase()) || tx.userId.toLowerCase().includes(search.toLowerCase());
+        const matchFilter = filter === 'all' || tx.status.toLowerCase() === filter;
+        return matchSearch && matchFilter;
+      }), [search, filter]);
+
+      return (
+        <div className="space-y-6">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div>
+              <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Transactions</h1>
+              <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>Monitor all transactions</p>
+            </div>
+            <button className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium" style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-secondary))', color: 'white' }}>
+              <Icon name="download" className="w-4 h-4" /> Export CSV
+            </button>
+          </div>
+
+          <div className="glass rounded-xl p-4">
+            <div className="flex flex-col sm:flex-row gap-3 mb-4">
+              <div className="flex-1 relative">
+                <div className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-secondary)' }}><Icon name="search" className="w-4 h-4" /></div>
+                <input type="text" placeholder="Search Transaction or User ID..." value={search} onChange={e => setSearch(e.target.value)} className="w-full pl-9 pr-4 py-2.5 rounded-lg outline-none focus:ring-2" style={{ background: 'rgba(15, 23, 42, 0.5)', color: 'var(--text-primary)', ringColor: 'var(--accent)' }} />
+              </div>
+              <select value={filter} onChange={e => setFilter(e.target.value)} className="px-4 py-2.5 rounded-lg outline-none" style={{ background: 'rgba(15, 23, 42, 0.5)', color: 'var(--text-primary)' }}>
+                <option value="all">All Status</option>
+                <option value="normal">Normal</option>
+                <option value="suspicious">Suspicious</option>
+                <option value="blocked">Blocked</option>
+              </select>
+            </div>
+
+            <div className="overflow-x-auto scrollbar-thin">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                    <th className="text-left py-3 px-3 font-medium" style={{ color: 'var(--text-secondary)' }}>Transaction ID</th>
+                    <th className="text-left py-3 px-3 font-medium" style={{ color: 'var(--text-secondary)' }}>User ID</th>
+                    <th className="text-left py-3 px-3 font-medium" style={{ color: 'var(--text-secondary)' }}>Amount</th>
+                    <th className="text-left py-3 px-3 font-medium" style={{ color: 'var(--text-secondary)' }}>Location</th>
+                    <th className="text-left py-3 px-3 font-medium" style={{ color: 'var(--text-secondary)' }}>Risk Score</th>
+                    <th className="text-left py-3 px-3 font-medium" style={{ color: 'var(--text-secondary)' }}>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.map(tx => (
+                    <tr key={tx.id} style={{ borderBottom: '1px solid var(--border)', background: tx.status === 'Blocked' ? 'rgba(239, 68, 68, 0.05)' : tx.status === 'Suspicious' ? 'rgba(245, 158, 11, 0.05)' : 'transparent' }}>
+                      <td className="py-3 px-3 mono" style={{ color: 'var(--accent)' }}>{tx.id}</td>
+                      <td className="py-3 px-3 mono" style={{ color: 'var(--text-primary)' }}>{tx.userId}</td>
+                      <td className="py-3 px-3 font-semibold" style={{ color: 'var(--text-primary)' }}>${tx.amount.toLocaleString()}</td>
+                      <td className="py-3 px-3" style={{ color: 'var(--text-secondary)' }}>{tx.location}</td>
+                      <td className="py-3 px-3">
+                        <div className="flex items-center gap-2">
+                          <div className="w-12 h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--border)' }}>
+                            <div className="h-full rounded-full" style={{ width: `${tx.riskScore}%`, background: tx.riskScore > 70 ? 'var(--danger)' : tx.riskScore > 40 ? 'var(--warning)' : 'var(--success)' }} />
+                          </div>
+                          <span className="mono text-xs" style={{ color: tx.riskScore > 70 ? 'var(--danger)' : tx.riskScore > 40 ? 'var(--warning)' : 'var(--success)' }}>{tx.riskScore}</span>
+                        </div>
+                      </td>
+                      <td className="py-3 px-3">
+                        <span className="px-2 py-1 rounded-full text-xs font-medium" style={{ background: tx.status === 'Normal' ? 'rgba(16, 185, 129, 0.2)' : tx.status === 'Suspicious' ? 'rgba(245, 158, 11, 0.2)' : 'rgba(239, 68, 68, 0.2)', color: tx.status === 'Normal' ? 'var(--success)' : tx.status === 'Suspicious' ? 'var(--warning)' : 'var(--danger)' }}>{tx.status}</span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    // Risk Analysis Page
+    const RiskAnalysisPage = ({ onAlert }) => {
+      const [showAlert, setShowAlert] = useState(false);
+      
+      useEffect(() => {
+        const interval = setInterval(() => {
+          onAlert && onAlert({ message: `High-risk transaction detected from ${['Lagos', 'Karachi', 'Moscow'][Math.floor(Math.random() * 3)]}` });
+        }, 20000);
+        return () => clearInterval(interval);
+      }, [onAlert]);
+
+      const getRiskColor = risk => risk > 60 ? 'var(--danger)' : risk > 40 ? 'var(--warning)' : 'var(--success)';
+
+      return (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Risk Analysis</h1>
+              <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>Geographic risk assessment</p>
+            </div>
+            <button className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium" style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-secondary))', color: 'white' }}>
+              <Icon name="download" className="w-4 h-4" /> Download Report
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div className="glass rounded-xl p-5">
+              <h3 className="font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>Model Information</h3>
+              <div className="space-y-3">
+                <div className="p-3 rounded-lg" style={{ background: 'rgba(15, 23, 42, 0.5)' }}>
+                  <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>Architecture</p>
+                  <p className="font-medium" style={{ color: 'var(--text-primary)' }}>Deep Neural Network (12 layers)</p>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="p-3 rounded-lg" style={{ background: 'rgba(15, 23, 42, 0.5)' }}>
+                    <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>Version</p>
+                    <p className="font-semibold mono" style={{ color: 'var(--text-primary)' }}>v3.2.1</p>
+                  </div>
+                  <div className="p-3 rounded-lg" style={{ background: 'rgba(15, 23, 42, 0.5)' }}>
+                    <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>Latency</p>
+                    <p className="font-semibold" style={{ color: 'var(--accent)' }}>47ms</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="glass rounded-xl p-5">
+              <h3 className="font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>Risk Factors</h3>
+              <div className="space-y-3">
+                {[
+                  { factor: 'Geographic Anomaly', weight: 35 },
+                  { factor: 'Transaction Velocity', weight: 28 },
+                  { factor: 'Amount Deviation', weight: 18 },
+                  { factor: 'Time Pattern', weight: 12 },
+                ].map(item => (
+                  <div key={item.factor} className="flex items-center gap-3">
+                    <span className="text-xs w-32" style={{ color: 'var(--text-secondary)' }}>{item.factor}</span>
+                    <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ background: 'var(--border)' }}>
+                      <div className="h-full rounded-full" style={{ width: `${item.weight}%`, background: 'linear-gradient(90deg, var(--accent), var(--accent-secondary))' }} />
+                    </div>
+                    <span className="mono text-xs" style={{ color: 'var(--accent)' }}>{item.weight}%</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="glass rounded-xl p-5">
+            <h3 className="font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>Regional Risk Heatmap</h3>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+              {riskRegions.map(r => (
+                <div key={r.region} className="rounded-xl p-3 text-center" style={{ background: `linear-gradient(135deg, ${getRiskColor(r.risk)}15, ${getRiskColor(r.risk)}05)`, border: `1px solid ${getRiskColor(r.risk)}20` }}>
+                  <p className="text-xs mb-1" style={{ color: 'var(--text-secondary)' }}>{r.region}</p>
+                  <p className="text-xl font-bold" style={{ color: getRiskColor(r.risk) }}>{r.risk}%</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    // Alerts Page
+    const AlertsPage = () => {
+      const alerts = [
+        { id: 'ALT-001', type: 'critical', message: 'Multiple failed login attempts detected', time: '2 min ago' },
+        { id: 'ALT-002', type: 'warning', message: 'Unusual transaction pattern for user USR-4521', time: '5 min ago' },
+        { id: 'ALT-003', type: 'critical', message: 'High-risk transaction blocked from Moscow', time: '8 min ago' },
+        { id: 'ALT-004', type: 'warning', message: 'Velocity threshold exceeded', time: '12 min ago' },
+        { id: 'ALT-005', type: 'info', message: 'New device registered for user USR-3345', time: '15 min ago' },
+      ];
+
+      const getTypeStyle = type => {
+        if (type === 'critical') return { bg: 'rgba(239, 68, 68, 0.1)', border: 'var(--danger)', color: 'var(--danger)' };
+        if (type === 'warning') return { bg: 'rgba(245, 158, 11, 0.1)', border: 'var(--warning)', color: 'var(--warning)' };
+        return { bg: 'rgba(14, 165, 233, 0.1)', border: 'var(--accent-secondary)', color: 'var(--accent-secondary)' };
+      };
+
+      return (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Alerts Center</h1>
+              <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>Real-time notifications</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="px-2 py-1 rounded-full text-xs font-medium" style={{ background: 'rgba(239, 68, 68, 0.2)', color: 'var(--danger)' }}>2 Critical</span>
+              <span className="px-2 py-1 rounded-full text-xs font-medium" style={{ background: 'rgba(245, 158, 11, 0.2)', color: 'var(--warning)' }}>2 Warnings</span>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            {alerts.map((alert, i) => {
+              const style = getTypeStyle(alert.type);
+              return (
+                <div key={alert.id} className="glass rounded-xl p-4 border-l-4 animate-slide-up" style={{ borderColor: style.border, animationDelay: `${i * 50}ms` }}>
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: style.bg }}><Icon name={alert.type === 'critical' ? 'warning' : 'alerts'} className="w-4 h-4" /></div>
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between">
+                        <span className="mono text-xs" style={{ color: 'var(--text-secondary)' }}>{alert.id}</span>
+                        <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>{alert.time}</span>
+                      </div>
+                      <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{alert.message}</p>
+                    </div>
+                    <button className="p-2 rounded-lg" style={{ background: 'rgba(148, 163, 184, 0.1)' }}><Icon name="x" className="w-4 h-4" /></button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      );
+    };
+
+    // Settings Page
+    const SettingsPage = () => {
+      const [settings, setSettings] = useState({ notifications: true, autoBlock: true, threshold: 75 });
+      const Toggle = ({ enabled, onChange }) => (
+        <button onClick={() => onChange(!enabled)} className="relative w-11 h-6 rounded-full transition-colors" style={{ background: enabled ? 'var(--accent)' : 'rgba(148, 163, 184, 0.3)' }}>
+          <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${enabled ? 'translate-x-6' : 'translate-x-1'}`} />
+        </button>
+      );
+
+      return (
+        <div className="space-y-6">
+          <div>
+            <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Settings</h1>
+            <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>Configure preferences</p>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div className="glass rounded-xl p-5">
+              <h3 className="font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>Detection Settings</h3>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>Real-time Notifications</p>
+                    <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>Get instant alerts</p>
+                  </div>
+                  <Toggle enabled={settings.notifications} onChange={v => setSettings({...settings, notifications: v})} />
+                </div>
+                <div className="h-px" style={{ background: 'var(--border)' }} />
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>Auto-Block High Risk</p>
+                    <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>Block above threshold</p>
+                  </div>
+                  <Toggle enabled={settings.autoBlock} onChange={v => setSettings({...settings, autoBlock: v})} />
+                </div>
+                <div className="h-px" style={{ background: 'var(--border)' }} />
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>Risk Threshold</p>
+                    <span className="mono text-sm" style={{ color: 'var(--accent)' }}>{settings.threshold}%</span>
+                  </div>
+                  <input type="range" min="50" max="100" value={settings.threshold} onChange={e => setSettings({...settings, threshold: parseInt(e.target.value)})} className="w-full" style={{ background: 'linear-gradient(90deg, var(--success), var(--warning), var(--danger))' }} />
+                </div>
+              </div>
+            </div>
+
+            <div className="glass rounded-xl p-5">
+              <h3 className="font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>API Configuration</h3>
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs mb-1" style={{ color: 'var(--text-secondary)' }}>API Endpoint</label>
+                  <input type="text" defaultValue="https://api.fraudguard.ai/v3" className="w-full px-3 py-2 rounded-lg outline-none text-sm" style={{ background: 'rgba(15, 23, 42, 0.5)', color: 'var(--text-primary)' }} />
+                </div>
+                <div>
+                  <label className="block text-xs mb-1" style={{ color: 'var(--text-secondary)' }}>API Key</label>
+                  <input type="password" defaultValue="sk_live_xxxxxxxxx" className="w-full px-3 py-2 rounded-lg outline-none text-sm mono" style={{ background: 'rgba(15, 23, 42, 0.5)', color: 'var(--text-primary)' }} />
+                </div>
+                <button className="w-full py-2.5 rounded-lg font-medium text-sm mt-2" style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-secondary))', color: 'white' }}>Save Changes</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    // Main App
+    const App = () => {
+      const [loading, setLoading] = useState(true);
+      const [currentPage, setCurrentPage] = useState('dashboard');
+      const [sidebarOpen, setSidebarOpen] = useState(false);
+      const [alert, setAlert] = useState(null);
+      const [stats, setStats] = useState({ total: 10000, fraud: 1250, risk: 12, accuracy: 94 });
+
+      useEffect(() => {
+        if (!loading) {
+          const interval = setInterval(() => {
+            setStats(p => ({
+              total: p.total + Math.floor(Math.random() * 30),
+              fraud: p.fraud + (Math.random() > 0.8 ? 1 : 0),
+              risk: Math.max(5, Math.min(25, p.risk + (Math.random() - 0.5) * 2)),
+              accuracy: Math.max(90, Math.min(99, p.accuracy + (Math.random() - 0.5) * 0.3))
+            }));
+          }, 3000);
+          return () => clearInterval(interval);
+        }
+      }, [loading]);
+
+      const handleAlert = useCallback(newAlert => {
+        setAlert(newAlert);
+        setTimeout(() => setAlert(null), 5000);
+      }, []);
+
+      const renderPage = () => {
+        const props = { stats, onAlert: handleAlert };
+        switch (currentPage) {
+          case 'dashboard': return <DashboardPage {...props} />;
+          case 'transactions': return <TransactionsPage />;
+          case 'risk': return <RiskAnalysisPage {...props} />;
+          case 'alerts': return <AlertsPage />;
+          case 'settings': return <SettingsPage />;
+          default: return <DashboardPage {...props} />;
+        }
+      };
+
+      if (loading) return <LoadingScreen onComplete={() => setLoading(false)} />;
+
+      return (
+        <div className="min-h-screen flex">
+          <Sidebar currentPage={currentPage} setCurrentPage={setCurrentPage} isOpen={sidebarOpen} setIsOpen={setSidebarOpen} />
+          <main className="flex-1 min-h-screen overflow-auto scrollbar-thin">
+            <header className="sticky top-0 z-30 glass-strong px-4 lg:px-6 py-3 flex items-center justify-between">
+              <button onClick={() => setSidebarOpen(true)} className="lg:hidden p-2 rounded-lg" style={{ background: 'rgba(148, 163, 184, 0.1)' }}><Icon name="menu" /></button>
+              <div className="hidden lg:block text-sm" style={{ color: 'var(--text-secondary)' }}>
+                <span>Home / </span><span style={{ color: 'var(--text-primary)' }}>{currentPage.charAt(0).toUpperCase() + currentPage.slice(1)}</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="hidden sm:flex items-center gap-1.5 px-2 py-1 rounded-full" style={{ background: 'rgba(16, 185, 129, 0.1)' }}>
+                  <div className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--success)' }} />
+                  <span className="text-xs" style={{ color: 'var(--success)' }}>Online</span>
+                </div>
+                <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold" style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-secondary))', color: 'white' }}>AD</div>
+              </div>
+            </header>
+            <div className="p-4 lg:p-6">{renderPage()}</div>
+          </main>
+          <AlertPopup alert={alert} onClose={() => setAlert(null)} />
+        </div>
+      );
+    };
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
